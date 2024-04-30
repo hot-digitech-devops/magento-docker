@@ -1,0 +1,237 @@
+diff --git a/php/8.2-cli/Dockerfile b/php/8.2-cli/Dockerfile
+index 06b5c31..675e01f 100644
+--- a/php/8.2-cli/Dockerfile
++++ b/php/8.2-cli/Dockerfile
+@@ -1,4 +1,4 @@
+-FROM golang:latest AS builder
++FROM golang:1.19 AS builder
+ 
+ RUN if [ $(uname -m) = "x86_64" ]; then mailhog_arch="amd64"; else mailhog_arch="arm64"; fi \
+     && wget -O mhsendmail.tar.gz https://github.com/mailhog/mhsendmail/archive/refs/tags/v0.2.0.tar.gz \
+@@ -16,7 +16,7 @@ ENV TZ=America/New_York
+ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+ 
+ RUN apt-get update && apt-get install -y sudo software-properties-common gpg
+-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
++RUN curl -fsSL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+ 
+ RUN touch /var/www/.bashrc
+ 
+@@ -100,7 +100,7 @@ ENV COMPOSER_ALLOW_SUPERUSER 1
+ ENV PHP_IDE_CONFIG serverName=magento
+ ENV COMPOSER_HOME /var/www/composer
+ ENV UPLOAD_MAX_FILESIZE 64M
+-ENV NODE_VERSION --lts;
++ENV NODE_VERSION 12.22.12;
+ 
+ ADD php/shared/etc/php-xdebug.ini /usr/local/etc/php/conf.d/zz-xdebug-settings.ini
+ ADD php/shared/etc/mail.ini /usr/local/etc/php/conf.d/zz-mail.ini
+@@ -117,7 +117,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
+ RUN mkdir -p /var/www/.nvm  && export NVM_DIR="/var/www/.nvm" \
+     && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | PROFILE=/var/www/.bashrc bash \
+     && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
+-    && nvm install --lts
++    && nvm install 12.22.12
+ 
+ RUN groupadd -g 1000 www && useradd -g 1000 -u 1000 -d ${MAGENTO_ROOT} -s /bin/bash www
+ RUN echo '%www ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && usermod -a -G www-data www && usermod -a -G www www-data && umask 002
+@@ -125,6 +125,7 @@ RUN chown www:www -R /var/www
+ 
+ RUN ["chmod", "+x", "/docker-entrypoint.sh"]
+ RUN ["chmod", "+x", "/usr/local/bin/run-cron"]
++RUN ["chmod", "+x", "/usr/local/bin/gold-styles"]
+ 
+ ENTRYPOINT ["/docker-entrypoint.sh"]
+ 
+diff --git a/php/8.2-fpm/Dockerfile b/php/8.2-fpm/Dockerfile
+index a72c203..c0f14a2 100644
+--- a/php/8.2-fpm/Dockerfile
++++ b/php/8.2-fpm/Dockerfile
+@@ -1,4 +1,4 @@
+-FROM golang:latest AS builder
++FROM golang:1.19 AS builder
+ 
+ RUN if [ $(uname -m) = "x86_64" ]; then mailhog_arch="amd64"; else mailhog_arch="arm64"; fi \
+     && wget -O mhsendmail.tar.gz https://github.com/mailhog/mhsendmail/archive/refs/tags/v0.2.0.tar.gz \
+diff --git a/php/shared/bin/gold-styles b/php/shared/bin/gold-styles
+new file mode 100644
+index 0000000..7488877
+--- /dev/null
++++ b/php/shared/bin/gold-styles
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++
++source /var/www/.bashrc
++
++cd ./vendor/gorilla/m2-frontend-tools && npm install && npm run setup && npm run styles --
+\ No newline at end of file
+diff --git a/php/shared/magento-vars.php b/php/shared/magento-vars.php
+index 76653a1..0cb3dfe 100644
+--- a/php/shared/magento-vars.php
++++ b/php/shared/magento-vars.php
+@@ -17,10 +17,163 @@
+  * @param string $host
+  * @return bool
+  */
+-function isHttpHost(string $host)
++function isHttpHost(string $host): bool
+ {
+     if (!isset($_SERVER['HTTP_HOST'])) {
+         return false;
+     }
+     return $_SERVER['HTTP_HOST'] === $host;
++}
++
++if (isHttpHost("mcloud-na-preprod.oxo.com") ||
++    isHttpHost("mcloud-na-stage.oxo.com") ||
++    isHttpHost("mcloud-na.oxo.com") ||
++    isHttpHost("oxo-gold.local.heledigital.com") ||
++    isHttpHost("www.oxo.com") ||
++    isHttpHost("oxo.com")
++) {
++    $_SERVER["MAGE_RUN_CODE"] = "oxo";
++    $_SERVER["MAGE_RUN_TYPE"] = "website";
++}
++
++if (isHttpHost("mcloud-na-preprod.hydroflask.com") ||
++    isHttpHost("mcloud-na-stage.hydroflask.com") ||
++    isHttpHost("mcloud-na.hydroflask.com") ||
++    isHttpHost("hf-gold.local.heledigital.com") ||
++    isHttpHost("www.hydroflask.com") ||
++    isHttpHost("hydroflask.com")
++) {
++    $_SERVER["MAGE_RUN_CODE"] = "hydro";
++    $_SERVER["MAGE_RUN_TYPE"] = "website";
++}
++
++if (isHttpHost("mcloud-na-preprod.drybar.com") ||
++    isHttpHost("mcloud-na-stage.drybar.com") ||
++    isHttpHost("mcloud-na-stage3.drybar.com") ||
++    isHttpHost("mcloud-na.drybar.com") ||
++    isHttpHost("drybar-gold.local.heledigital.com") ||
++    isHttpHost("www.drybar.com") ||
++    isHttpHost("drybar.com")
++) {
++    $_SERVER["MAGE_RUN_CODE"] = "drybar";
++    $_SERVER["MAGE_RUN_TYPE"] = "website";
++}
++
++if (isHttpHost("mcloud-na-stage3.osprey.com") ||
++    isHttpHost("mcloud-na.osprey.com") ||
++    isHttpHost("osprey-gold.local.heledigital.com") ||
++    isHttpHost("www.osprey.com") ||
++    isHttpHost("osprey.com")
++) {
++    $_SERVER["MAGE_RUN_CODE"] = "ospreyusen";
++    $_SERVER["MAGE_RUN_TYPE"] = "store";
++
++    $ospreyUSStores = [
++        'ospreyusen',
++        'ospreyuses',
++        'ospreyaren',
++        'ospreyares',
++        'ospreyauen',
++        'ospreybren',
++        'ospreycaen',
++        'ospreycafr',
++        'ospreyclen',
++        'ospreycles',
++        'ospreycnen',
++        'ospreyecen',
++        'ospreyeces',
++        'ospreyhken',
++        'ospreyiden',
++        'ospreyjpen',
++        'ospreymyen',
++        'ospreymxen',
++        'ospreymxes',
++        'ospreynzen',
++        'ospreypyen',
++        'ospreypyes',
++        'ospreyphen',
++        'ospreysgen',
++        'ospreykren',
++        'ospreytwen',
++        'ospreythen',
++        'ospreyuyen',
++        'ospreyuyes',
++    ];
++    $uri = explode('/', $_SERVER['REQUEST_URI']);
++    if (isset($uri[1]) && isset($uri[2])) {
++        $storeName = 'osprey'.trim(strtolower($uri[1])).trim(strtolower($uri[2]));
++        if (in_array($storeName, $ospreyUSStores)) {
++            $_SERVER["MAGE_RUN_CODE"] = $storeName;
++            $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1].'/'.$uri[2],'',$_SERVER['REQUEST_URI']);
++        }
++    }
++}
++
++if (isHttpHost("emea-stage.hele.digital") ||
++    isHttpHost("emea-preprod.hele.digital") ||
++    isHttpHost("emea.hele.digital") ||
++    isHttpHost("www.ospreyeurope.com") ||
++    isHttpHost("osprey-emea.local.heledigital.com") ||
++    isHttpHost("ospreyeurope.com")
++) {
++    $_SERVER["MAGE_RUN_CODE"] = "ospreyuken";
++    $_SERVER["MAGE_RUN_TYPE"] = "store";
++
++    $uri = explode('/', $_SERVER['REQUEST_URI']);
++    if (isset($uri[1])) {
++        switch($uri[1])
++        {
++            case 'gb':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreyuken";
++                break;
++            case 'se_sv':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreyseksv";
++                break;
++            case 'che_fr':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreychffr";
++                break;
++            case 'che_de':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreychfde";
++                break;
++            case 'che_it':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreychfit";
++                break;
++            case 'dk_en':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreydkken";
++                break;
++            case 'no_nb':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreynoknn";
++                break;
++            case 'fr':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreyeufr";
++                break;
++            case 'it':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreyeuit";
++                break;
++            case 'es':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreyeues";
++                break;
++            case 'de':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreyeude";
++                break;
++            case 'eu':
++                $_SERVER['REQUEST_URI'] = str_replace('/'.$uri[1],'',$_SERVER['REQUEST_URI']);
++                $_SERVER["MAGE_RUN_CODE"] = "ospreyeuen";
++                break;
++            default:
++                $_SERVER["MAGE_RUN_CODE"] = "ospreyuken";
++                break;
++        }
++    }
+ }
+\ No newline at end of file

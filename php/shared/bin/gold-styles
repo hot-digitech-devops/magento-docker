@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+source /var/www/.bashrc
+
+cd ./vendor/gorilla/m2-frontend-tools && npm install && npm run setup && npm run styles --
